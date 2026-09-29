@@ -77,6 +77,12 @@ virtual que no tiene salida física. El servidor de audio captura de su monitor
 oye el cliente noVNC. Si una app **no** está ruteada a `distro_sink`, su audio
 nunca llega al navegador.
 
+> **▶ [Ver la demo en acción (30 s)](docs/demo-audio-novnc.mp4)** — un video de
+> animación con sonido: los primeros 14 s el audio va a los altavoces (noVNC
+> mudo) y a partir de ahí el stream se mueve a `distro_sink` y **se empieza a
+> oír en el navegador**. Es la forma más rápida de entender el routing.
+> Detalles al final del README, en [Demo](#demo).
+
 ### Montar la tarjeta
 
 ```bash
@@ -173,16 +179,16 @@ journalctl --user -u novnc-audio.service -f
 
 ## Demo
 
-Demo completa (30 s) — [`docs/demo-audio-novnc.mp4`](docs/demo-audio-novnc.mp4).
-En la grabación se ve **pavucontrol en primer plano** mostrando el destino del
-stream (altavoces → `distro_sink`), tal como lo vería quien está usando noVNC.
-
-- **0–14 s · SIN AUDIO**: el stream va a los altavoces físicos → noVNC mudo.
-- **14–30 s · CON AUDIO**: el stream se mueve a `distro_sink` → noVNC con sonido.
+▶ [`docs/demo-audio-novnc.mp4`](docs/demo-audio-novnc.mp4) — 30 s: los primeros
+14 s sin audio (stream en los altavoces) y de 14 s en adelante con audio
+(stream en `distro_sink`).
 
 La pista de audio del video sale de `distro_sink.monitor`, es decir **exactamente
 lo que recibe el cliente noVNC** — si el stream no está en `distro_sink`, el
 audio del video no existe; cuando lo mueves, suena.
+
+Durante la grabación se ve **pavucontrol en primer plano** mostrando el destino
+del stream (altavoces → `distro_sink`), tal como lo vería quien usa noVNC.
 
 ### Regenerarla
 
