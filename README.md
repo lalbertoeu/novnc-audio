@@ -69,6 +69,62 @@ El host siempre es el mismo desde el que abres noVNC (`window.location.hostname`
 | `AUDIO_CHANNELS` | `2` | Canales |
 | `AUDIO_CHUNK_MS` | `30` | Tamaño de frame en ms |
 
+## distro_sink: la tarjeta virtual de audio
+
+**`distro_sink`** es un *null sink* de PulseAudio: una tarjeta de sonido
+virtual que no tiene salida física. El servidor de audio captura de su monitor
+(`distro_sink.monitor`) todo lo que se envíe ahí, y eso es exactamente lo que
+oye el cliente noVNC. Si una app **no** está ruteada a `distro_sink`, su audio
+nunca llega al navegador.
+
+### Montar la tarjeta
+
+```bash
+pactl load-module module-null-sink \
+    sink_name=distro_sink \
+    sink_properties=device.description=DistroSink
+```
+
+Idempotente (no falla si ya existe). También lo hace automáticamente el
+servicio en cada arranque (`novnc-audio-start.sh`) o con:
+
+```bash
+./audio_server/start_virtual_soundcard.sh
+```
+
+### Configurarla como sink por defecto
+
+```bash
+pactl set-default-sink distro_sink
+```
+
+Con esto, **toda app nueva** (video de YouTube, música, etc.) enruta su audio a
+`distro_sink` automáticamente y suena en noVNC.
+
+### Conectar streams existentes a la tarjeta
+
+Las apps ya abiertas conservan su sink anterior. Múdelas en caliente:
+
+```bash
+# Listar streams de audio activos
+pactl list short sink-inputs
+
+# Mover uno concreto a distro_sink (<idx> es la primera columna)
+pactl move-sink-input <idx> distro_sink
+```
+
+### Verificar el flujo
+
+```bash
+pactl list short sinks                # distro_sink debe aparecer como RUNNING
+pactl get-default-sink                # debe decir: distro_sink
+pactl list short sink-inputs          # el stream de la app debe apuntar a distro_sink
+```
+
+> El script `novnc-audio-start.sh` hace los tres pasos (montar → default →
+> mover streams) en cada arranque, así no tienes que repetirlo a mano.
+> El timer systemd `novnc-audio-restart.timer` lo re-aplica cada 5 min.
+
 ## Arquitectura
 
 ```
@@ -108,8 +164,42 @@ journalctl --user -u novnc-audio.service -f
 - El `-ncache` de x11vnc **no es compatible** con noVNC: no lo uses, produce
   una ventana gris. Usa en su lugar `-threads` y X DAMAGE (así viene el
   `x11vnc.service` de este repo).
+- Con un compositor de escritorio (GNOME/Mutter, etc.) **quita X DAMAGE**:
+  `x11vnc -noxdamage` (ya va así en el `x11vnc.service` de este repo). Con el
+  compositor activo, X DAMAGE falla y la pantalla noVNC **se queda congelada**
+  (no llega ningún update), aunque Sunshine y otros capturen bien.
 - Para reproducción de video fluida, baja *Quality* y sube *Compression* en el
   panel de ajustes de noVNC.
+
+## Demo
+
+`docs/demo-audio-novnc.mp4` muestra la demo completa (30 s):
+
+- **0–14 s · SIN AUDIO**: el stream va a los altavoces físicos → noVNC mudo.
+- **14–30 s · CON AUDIO**: el stream se mueve a `distro_sink` → noVNC con sonido.
+
+En la grabación se ve **pavucontrol en primer plano** mostrando el destino del
+stream (altavoces → `distro_sink`), tal como lo vería quien está usando noVNC.
+
+La pista de audio del video sale de `distro_sink.monitor`, es decir **exactamente
+lo que recibe el cliente noVNC** — si el stream no está en `distro_sink`, el
+audio del video no existe; cuando lo mueves, suena.
+
+### Regenerarla
+
+El video fuente es un **clip de animación generado por ffmpeg** con una melodía
+sintetizada: **sin derechos de autor**, 30 s exactos y reproducible de forma
+determinista (el clip se crea automáticamente la primera vez, ~23 MB en
+`docs/demo-assets/demo-clip.mp4`, excluido de git). Se usa en lugar de un video
+de YouTube porque así no hay auto-pausa por foco ni problemas de licencia.
+
+```bash
+./docs/grabar_demo.sh docs/demo-audio-novnc.mp4
+```
+
+El script abre el clip en el navegador, lo rutea primero a los altavoces
+(Fase 1) y a los 14 s lo mueve a `distro_sink` (Fase 2), con pavucontrol
+trayéndose al primer plano. Requiere `xdotool`, `ffmpeg` y `python3`.
 
 ## Licencia
 

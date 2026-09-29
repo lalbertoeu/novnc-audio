@@ -3,7 +3,7 @@ Description=Start x11vnc on display :0
 After=graphical.target
 
 [Service]
-ExecStart=/usr/bin/x11vnc -auth guess -forever -loop -threads -repeat -rfbauth __USER_HOME__/.vnc/passwd -rfbport 5900 -shared -display :0
+ExecStart=/usr/bin/x11vnc -auth guess -forever -threads -repeat -noxdamage -rfbauth __USER_HOME__/.vnc/passwd -rfbport 5900 -shared -display :0
 Restart=always
 
 [Install]
