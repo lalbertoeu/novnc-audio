@@ -1,89 +1,93 @@
 # noVNC Audio Bridge
 
-Transmite el **audio del sistema remoto** a tu navegador mientras usas noVNC.
-El servidor captura el sink de PulseAudio y lo envía como PCM Float32 por
-WebSocket; el navegador lo reproduce con la Web Audio API.
+> **[English](README.md) · [Español](README.es.md)**
 
-> **Sin IPs ni credenciales en el código.** Todo se configura con variables de
-> entorno y el cliente deriva la URL del WebSocket de la propia página.
+Streams the **remote system's audio** to your browser while you use noVNC.
+The server captures the PulseAudio sink and streams it as Float32 PCM over a
+WebSocket; the browser plays it back with the Web Audio API.
 
-## Quick path
+> **No IPs or credentials in the code.** Everything is configured through
+> environment variables, and the client derives the WebSocket URL from the page
+> it is served from.
 
-1. **Instala** dependencias y servicios:
+## Quick start
+
+1. **Install** dependencies and services:
 
    ```bash
-   ./install.sh /ruta/a/tu/fork/de/noVNC
+   ./install.sh /path/to/your/noVNC/fork
    ```
 
-2. **Parchea `vnc.html`** de tu noVNC: añade justo antes de `</body>`
+2. **Patch your noVNC `vnc.html`**: add right before `</body>`
 
    ```html
    <script src="vnc-audio-client.js"></script>
    ```
 
-   y copia `web/vnc-audio-client.js` junto a `vnc.html`.
+   and copy `web/vnc-audio-client.js` next to `vnc.html`.
 
-3. **Abre noVNC** en el navegador y haz clic una vez dentro de la página
-   (los navegadores exigen un gesto del usuario antes de reproducir audio).
+3. **Open noVNC** in the browser and click once inside the page
+   (browsers require a user gesture before playing audio).
 
-4. **Verifica**:
+4. **Verify**:
 
    ```bash
-   systemctl --user status novnc-audio.service    # debe estar Active (running)
-   pactl list short sinks                          # distro_sink debe existir
+   systemctl --user status novnc-audio.service    # must be Active (running)
+   pactl list short sinks                          # distro_sink must exist
    ```
 
-5. **Prueba el audio suelto** (sin abrir noVNC): abre `web/testaudio.html` en el
-   navegador. Debe mostrar `CONECTADO ✓` y `Recibiendo audio (N bytes/frame) ✓`.
+5. **Test the audio on its own** (without opening noVNC): open
+   `web/testaudio.html` in the browser. It should show `CONECTADO ✓` and
+   `Recibiendo audio (N bytes/frame) ✓`.
 
-## Cómo decide ws:// o wss://
+## How it picks ws:// or wss://
 
-El cliente **no fija un esquema**: lo deriva de cómo cargaste noVNC.
+The client **does not hardcode a scheme**: it derives it from how you loaded noVNC.
 
-| Serviste noVNC por... | WebSocket del audio |
+| You served noVNC over... | Audio WebSocket |
 |---|---|
-| `http://...` | `ws://mismo-host:8088` |
-| `https://...` | `wss://mismo-host:8088` |
+| `http://...` | `ws://same-host:8088` |
+| `https://...` | `wss://same-host:8088` |
 
-En `web/vnc-audio-client.js`:
+In `web/vnc-audio-client.js`:
 
 ```js
 const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
 return scheme + '://' + window.location.hostname + ':' + AUDIO_PORT;
 ```
 
-El host siempre es el mismo desde el que abres noVNC (`window.location.hostname`).
+The host is always the one you loaded noVNC from (`window.location.hostname`).
 
-> ⚠️ **wss:// solo funciona si además hay TLS en el puerto 8088.** Si no tienes
-> un proxy con certificado delante de `audio_server_ws.py`, usa `http://` para
-> noVNC y el audio irá por `ws://` sin conflictos de mixed-content.
+> ⚠️ **wss:// only works if there is also TLS on port 8088.** If you don't have a
+> proxy with a certificate in front of `audio_server_ws.py`, serve noVNC over
+> `http://` and the audio will go over `ws://` with no mixed-content conflicts.
 
-## Configuración (variables de entorno)
+## Configuration (environment variables)
 
-| Variable | Default | Descripción |
+| Variable | Default | Description |
 |---|---|---|
-| `AUDIO_SINK` | `distro_sink` | Nombre del null sink de PulseAudio |
-| `AUDIO_WS_HOST` | `0.0.0.0` | Dirección donde escucha el WebSocket |
-| `AUDIO_WS_PORT` | `8088` | Puerto del WebSocket |
-| `AUDIO_SAMPLE_RATE` | `48000` | Hz de captura |
-| `AUDIO_CHANNELS` | `2` | Canales |
-| `AUDIO_CHUNK_MS` | `30` | Tamaño de frame en ms |
+| `AUDIO_SINK` | `distro_sink` | Name of the PulseAudio null sink |
+| `AUDIO_WS_HOST` | `0.0.0.0` | Address the WebSocket listens on |
+| `AUDIO_WS_PORT` | `8088` | WebSocket port |
+| `AUDIO_SAMPLE_RATE` | `48000` | Capture rate in Hz |
+| `AUDIO_CHANNELS` | `2` | Channels |
+| `AUDIO_CHUNK_MS` | `30` | Frame size in ms |
 
-## distro_sink: la tarjeta virtual de audio
+## distro_sink: the virtual sound card
 
-**`distro_sink`** es un *null sink* de PulseAudio: una tarjeta de sonido
-virtual que no tiene salida física. El servidor de audio captura de su monitor
-(`distro_sink.monitor`) todo lo que se envíe ahí, y eso es exactamente lo que
-oye el cliente noVNC. Si una app **no** está ruteada a `distro_sink`, su audio
-nunca llega al navegador.
+**`distro_sink`** is a PulseAudio *null sink*: a virtual sound card with no
+physical output. The audio server captures from its monitor
+(`distro_sink.monitor`) everything sent there, and that is exactly what the
+noVNC client hears. If an app is **not** routed to `distro_sink`, its audio
+never reaches the browser.
 
-> **▶ [Ver la demo en acción (30 s)](docs/demo-audio-novnc.mp4)** — un video de
-> animación con sonido: los primeros 14 s el audio va a los altavoces (noVNC
-> mudo) y a partir de ahí el stream se mueve a `distro_sink` y **se empieza a
-> oír en el navegador**. Es la forma más rápida de entender el routing.
-> Detalles al final del README, en [Demo](#demo).
+> **▶ [Watch the demo in action (30 s)](docs/demo-audio-novnc.mp4)** — an
+> animation clip with sound: for the first 14 s the audio goes to the speakers
+> (noVNC is silent), and from then on the stream is moved to `distro_sink` and
+> **you start hearing it in the browser**. The fastest way to understand the
+> routing. More details at the end of this README, in [Demo](#demo).
 
-### Montar la tarjeta
+### Mount the card
 
 ```bash
 pactl load-module module-null-sink \
@@ -91,121 +95,123 @@ pactl load-module module-null-sink \
     sink_properties=device.description=DistroSink
 ```
 
-Idempotente (no falla si ya existe). También lo hace automáticamente el
-servicio en cada arranque (`novnc-audio-start.sh`) o con:
+Idempotent (it does not fail if it already exists). The service also does this
+automatically on every start (`novnc-audio-start.sh`), or you can run:
 
 ```bash
 ./audio_server/start_virtual_soundcard.sh
 ```
 
-### Configurarla como sink por defecto
+### Set it as the default sink
 
 ```bash
 pactl set-default-sink distro_sink
 ```
 
-Con esto, **toda app nueva** (video de YouTube, música, etc.) enruta su audio a
-`distro_sink` automáticamente y suena en noVNC.
+With this, **every new app** (video playback, music, etc.) routes its audio to
+`distro_sink` automatically and is heard in noVNC.
 
-### Conectar streams existentes a la tarjeta
+### Connect existing streams to the card
 
-Las apps ya abiertas conservan su sink anterior. Múdelas en caliente:
+Apps that are already open keep their previous sink. Move them on the fly:
 
 ```bash
-# Listar streams de audio activos
+# List active audio streams
 pactl list short sink-inputs
 
-# Mover uno concreto a distro_sink (<idx> es la primera columna)
+# Move one to distro_sink (<idx> is the first column)
 pactl move-sink-input <idx> distro_sink
 ```
 
-### Verificar el flujo
+### Verify the flow
 
 ```bash
-pactl list short sinks                # distro_sink debe aparecer como RUNNING
-pactl get-default-sink                # debe decir: distro_sink
-pactl list short sink-inputs          # el stream de la app debe apuntar a distro_sink
+pactl list short sinks                # distro_sink should show up as RUNNING
+pactl get-default-sink                # should say: distro_sink
+pactl list short sink-inputs          # the app's stream should point to distro_sink
 ```
 
-> El script `novnc-audio-start.sh` hace los tres pasos (montar → default →
-> mover streams) en cada arranque, así no tienes que repetirlo a mano.
-> El timer systemd `novnc-audio-restart.timer` lo re-aplica cada 5 min.
+> The `novnc-audio-start.sh` script does all three steps (mount → default →
+> move streams) on every start, so you do not have to repeat them by hand.
+> The `novnc-audio-restart.timer` systemd timer re-applies them every 5 min.
 
-## Arquitectura
+## Architecture
 
 ```
 PulseAudio (distro_sink.monitor)
         │  ffmpeg (-f f32le)
         ▼
-audio_server_ws.py :8088  ──WS──►  navegador (Web Audio API)
+audio_server_ws.py :8088  ──WS──►  browser (Web Audio API)
         ▲
      noVNC viewer
 ```
 
-## Servicios systemd
+## systemd services
 
-| Servicio | Puerto | Rol |
+| Service | Port | Role |
 |---|---|---|
-| `novnc-audio.service` | 8088 | ffmpeg + servidor WebSocket |
-| `novnc.service` | 6080 | proxy WebSocket VNC |
-| `x11vnc.service` | 5900 | servidor VNC |
-| `novnc-audio-restart.timer` | — | reinicia audio cada 5 min |
+| `novnc-audio.service` | 8088 | ffmpeg + WebSocket server |
+| `novnc.service` | 6080 | VNC WebSocket proxy |
+| `x11vnc.service` | 5900 | VNC server |
+| `novnc-audio-restart.timer` | — | restarts audio every 5 min |
 
 ```bash
 systemctl --user status novnc-audio.service
 journalctl --user -u novnc-audio.service -f
 ```
 
-## Dependencias
+## Dependencies
 
 - ffmpeg
 - python3 + `websockets`
 - PulseAudio (`pactl`)
 - x11vnc
-- Fork de noVNC (ver repo `noVNC-audio-fork`)
+- A noVNC fork (see the `noVNC-audio-fork` repo)
 
-## Requisitos y limitaciones
+## Requirements and limitations
 
-- Requiere una sesión gráfica local (GNOME/etc.) con PulseAudio en el servidor.
-- El `-ncache` de x11vnc **no es compatible** con noVNC: no lo uses, produce
-  una ventana gris. Usa en su lugar `-threads` y X DAMAGE (así viene el
-  `x11vnc.service` de este repo).
-- Con un compositor de escritorio (GNOME/Mutter, etc.) **quita X DAMAGE**:
-  `x11vnc -noxdamage` (ya va así en el `x11vnc.service` de este repo). Con el
-  compositor activo, X DAMAGE falla y la pantalla noVNC **se queda congelada**
-  (no llega ningún update), aunque Sunshine y otros capturen bien.
-- Para reproducción de video fluida, baja *Quality* y sube *Compression* en el
-  panel de ajustes de noVNC.
+- Requires a local graphical session (GNOME/etc.) with PulseAudio on the server.
+- x11vnc's `-ncache` is **not compatible** with noVNC: do not use it, it
+  produces a grey window. Use `-threads` instead (as in this repo's
+  `x11vnc.service`).
+- With a desktop compositor (GNOME/Mutter, etc.) **disable X DAMAGE**:
+  `x11vnc -noxdamage` (already set in this repo's `x11vnc.service`). With the
+  compositor active, X DAMAGE fails and the noVNC screen **freezes** (no
+  updates get through), even though Sunshine and other capture tools work fine.
+- For smooth video playback, lower *Quality* and raise *Compression* in the
+  noVNC settings panel.
 
 ## Demo
 
-▶ [`docs/demo-audio-novnc.mp4`](docs/demo-audio-novnc.mp4) — 30 s: los primeros
-14 s sin audio (stream en los altavoces) y de 14 s en adelante con audio
-(stream en `distro_sink`).
+▶ [`docs/demo-audio-novnc.mp4`](docs/demo-audio-novnc.mp4) — 30 s: the first
+14 s without audio (stream on the speakers), and from 14 s on with audio (stream
+on `distro_sink`).
 
-La pista de audio del video sale de `distro_sink.monitor`, es decir **exactamente
-lo que recibe el cliente noVNC** — si el stream no está en `distro_sink`, el
-audio del video no existe; cuando lo mueves, suena.
+The video's audio track comes from `distro_sink.monitor` — that is **exactly
+what the noVNC client receives**. If the stream is not on `distro_sink`, the
+video's audio does not exist; when you move it, you hear it.
 
-Durante la grabación se ve **pavucontrol en primer plano** mostrando el destino
-del stream (altavoces → `distro_sink`), tal como lo vería quien usa noVNC.
+During the recording you can see **pavucontrol in the foreground** showing the
+stream's destination (speakers → `distro_sink`), just as someone using noVNC
+would see it.
 
-### Regenerarla
+### Regenerating it
 
-El video fuente es un **clip de animación generado por ffmpeg** con una melodía
-sintetizada: **sin derechos de autor**, 30 s exactos y reproducible de forma
-determinista (el clip se crea automáticamente la primera vez, ~23 MB en
-`docs/demo-assets/demo-clip.mp4`, excluido de git). Se usa en lugar de un video
-de YouTube porque así no hay auto-pausa por foco ni problemas de licencia.
+The source video is an **animation clip generated by ffmpeg** with a synthesized
+melody: **no copyright**, exactly 30 s, and deterministically reproducible (the
+clip is created automatically the first time, ~23 MB at
+`docs/demo-assets/demo-clip.mp4`, excluded from git). It is used instead of a
+YouTube video so there is no focus auto-pause and no licensing issue.
 
 ```bash
 ./docs/grabar_demo.sh docs/demo-audio-novnc.mp4
 ```
 
-El script abre el clip en el navegador, lo rutea primero a los altavoces
-(Fase 1) y a los 14 s lo mueve a `distro_sink` (Fase 2), con pavucontrol
-trayéndose al primer plano. Requiere `xdotool`, `ffmpeg` y `python3`.
+The script opens the clip in the browser, routes it to the speakers first
+(Phase 1) and at 14 s moves it to `distro_sink` (Phase 2), bringing pavucontrol
+to the foreground. Requires `xdotool`, `ffmpeg` and `python3`.
 
-## Licencia
+## License
 
-MIT. El código es independiente de noVNC (MPL-2.0) — ver el repo `noVNC-audio-fork`.
+MIT. The code is independent from noVNC (MPL-2.0) — see the
+`noVNC-audio-fork` repo.
