@@ -1,0 +1,17 @@
+[Unit]
+Description=noVNC Proxy (WebSocket VNC viewer on :6080)
+
+[Service]
+Type=simple
+ExecStart=__INSTALL_DIR__/noVNC/utils/novnc_proxy --listen 6080 --vnc localhost:5900
+WorkingDirectory=__INSTALL_DIR__/noVNC
+Restart=on-failure
+RestartSec=5
+Environment=HOME=__USER_HOME__
+
+# Cascada solo en stop intencional: parar audio cuando el usuario para noVNC
+# En crash (Restart=on-failure), audio se mantiene y noVNC se relanza solo
+ExecStop=/bin/bash -c 'systemctl --user stop novnc-audio.service; kill $MAINPID'
+
+[Install]
+WantedBy=default.target

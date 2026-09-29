@@ -1,0 +1,6 @@
+[Unit]
+Description=Reiniciar servicio de audio noVNC
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl --user restart novnc-audio.service

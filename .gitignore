@@ -1,0 +1,19 @@
+# Exclude trabajo local y datos personales
+__pycache__/
+*.pyc
+*.log
+salidaaudio.txt
+
+# Binarios y entornos locales que cada usuario instala por su cuenta
+venv/
+.venv/
+ffmpeg/
+ffmpeg-*-static/
+*.tar.xz
+*.ogg
+*.mp3
+
+# Datos personales
+.capturas/
+*.png
+*.jpg
