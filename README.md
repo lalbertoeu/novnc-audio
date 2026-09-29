@@ -33,6 +33,9 @@ WebSocket; el navegador lo reproduce con la Web Audio API.
    pactl list short sinks                          # distro_sink debe existir
    ```
 
+5. **Prueba el audio suelto** (sin abrir noVNC): abre `web/testaudio.html` en el
+   navegador. Debe mostrar `CONECTADO ✓` y `Recibiendo audio (N bytes/frame) ✓`.
+
 ## Cómo decide ws:// o wss://
 
 El cliente **no fija un esquema**: lo deriva de cómo cargaste noVNC.
