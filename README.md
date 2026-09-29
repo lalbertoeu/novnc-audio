@@ -173,13 +173,12 @@ journalctl --user -u novnc-audio.service -f
 
 ## Demo
 
-`docs/demo-audio-novnc.mp4` muestra la demo completa (30 s):
+Demo completa (30 s) — [`docs/demo-audio-novnc.mp4`](docs/demo-audio-novnc.mp4).
+En la grabación se ve **pavucontrol en primer plano** mostrando el destino del
+stream (altavoces → `distro_sink`), tal como lo vería quien está usando noVNC.
 
 - **0–14 s · SIN AUDIO**: el stream va a los altavoces físicos → noVNC mudo.
 - **14–30 s · CON AUDIO**: el stream se mueve a `distro_sink` → noVNC con sonido.
-
-En la grabación se ve **pavucontrol en primer plano** mostrando el destino del
-stream (altavoces → `distro_sink`), tal como lo vería quien está usando noVNC.
 
 La pista de audio del video sale de `distro_sink.monitor`, es decir **exactamente
 lo que recibe el cliente noVNC** — si el stream no está en `distro_sink`, el
