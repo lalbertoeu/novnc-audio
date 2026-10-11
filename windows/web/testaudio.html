@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Test noVNC Audio Bridge</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 640px; margin: 3em auto; padding: 0 1em; }
+        #status { font-weight: bold; }
+        .ok { color: #1a7f37; }
+        .err { color: #cf222e; }
+        .warn { color: #9a6700; }
+    </style>
+</head>
+<body>
+    <h1>Test noVNC Audio Bridge</h1>
+    <p>Protocolo de página: <code id="proto"></code></p>
+    <p>WebSocket de audio: <code id="wsurl"></code></p>
+    <p>Estado: <span id="status">Conectando...</span></p>
+
+    <script>
+        // Mismo comportamiento que vnc-audio-client.js: ws:// (HTTP) o wss:// (HTTPS)
+        const PORT = 8088;
+        const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsUrl = scheme + '://' + window.location.hostname + ':' + PORT;
+
+        document.getElementById('proto').textContent = window.location.protocol;
+        document.getElementById('wsurl').textContent = wsUrl;
+
+        const ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer';
+
+        ws.onopen = () => {
+            document.getElementById('status').textContent = 'CONECTADO ✓';
+            document.getElementById('status').className = 'ok';
+        };
+
+        ws.onmessage = (event) => {
+            const status = document.getElementById('status');
+            status.textContent = 'Recibiendo audio (' + event.data.byteLength + ' bytes/frame) ✓';
+            status.className = 'ok';
+        };
+
+        ws.onerror = () => {
+            const status = document.getElementById('status');
+            status.textContent = 'Error de conexión (¿audio_server_ws.py está activo en :8088?)';
+            status.className = 'err';
+        };
+
+        ws.onclose = (e) => {
+            const status = document.getElementById('status');
+            status.textContent = 'Cerrado (code ' + e.code + ') — reconectando...';
+            status.className = 'warn';
+            setTimeout(() => location.reload(), 3000);
+        };
+    </script>
+</body>
+</html>

@@ -10,6 +10,23 @@ WebSocket; the browser plays it back with the Web Audio API.
 > environment variables, and the client derives the WebSocket URL from the page
 > it is served from.
 
+## Platforms
+
+The root of this repo is the **Linux** version (PulseAudio + systemd, see
+[Quick start](#quick-start)). The same audio bridge is also available for
+macOS and Windows:
+
+| Platform | Folder | Capture backend | Virtual sound card |
+|---|---|---|---|
+| Linux | *(this repo)* | PulseAudio `distro_sink.monitor` | null-sink (PulseAudio) |
+| macOS | [`macos/`](macos/) | ffmpeg `avfoundation` | [BlackHole](https://existential.audio/blackhole/) |
+| Windows | [`windows/`](windows/) | ffmpeg `dshow` | [VB-CABLE](https://vb-audio.com/Cable/) |
+
+Each folder is self-contained: `audio_server/`, `web/` (the browser client) and
+its own README with platform-specific install steps. The browser client and
+`audio_server_ws.py` are the same code everywhere — only the ffmpeg capture
+input changes.
+
 ## Quick start
 
 1. **Install** dependencies and services:
