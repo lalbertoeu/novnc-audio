@@ -13,6 +13,7 @@ import asyncio
 import os
 import re
 import shutil
+import ssl
 import subprocess
 import sys
 
@@ -32,6 +33,12 @@ CHUNK_MS = int(os.environ.get("AUDIO_CHUNK_MS", "30"))  # milliseconds per frame
 #   AUDIO_DEVICE_HINT -> subcadena para auto-detectarlo (default "BlackHole")
 AUDIO_DEVICE = os.environ.get("AUDIO_DEVICE", "")
 AUDIO_DEVICE_HINT = os.environ.get("AUDIO_DEVICE_HINT", "BlackHole")
+
+# TLS opcional: el cliente macOS fuerza wss:// (la página se sirve por HTTPS con
+# certificado auto-firmado). Si AUDIO_TLS_CERT y AUDIO_TLS_KEY están definidos,
+# este servidor acepta conexiones cifradas; si no, queda en ws:// sin cifrar.
+TLS_CERT = os.environ.get("AUDIO_TLS_CERT", "")
+TLS_KEY = os.environ.get("AUDIO_TLS_KEY", "")
 
 FFMPEG_CMD = None
 CHUNK = None
@@ -158,8 +165,17 @@ async def main():
     process = await start_ffmpeg()
     asyncio.create_task(broadcast(process))
 
-    async with websockets.serve(handler, WS_HOST, WS_PORT):
-        print(f"[INFO] WebSocket en {WS_HOST}:{WS_PORT}")
+    serve_kwargs = {}
+    scheme = "ws"
+    if TLS_CERT and TLS_KEY:
+        ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ssl_ctx.load_cert_chain(TLS_CERT, TLS_KEY)
+        serve_kwargs["ssl"] = ssl_ctx
+        scheme = "wss"
+        print(f"[INFO] TLS habilitado: {TLS_CERT}")
+
+    async with websockets.serve(handler, WS_HOST, WS_PORT, **serve_kwargs):
+        print(f"[INFO] WebSocket {scheme} en {WS_HOST}:{WS_PORT}")
         await asyncio.Future()  # run forever
 
 

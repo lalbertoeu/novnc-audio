@@ -6,10 +6,10 @@ captura**: en lugar de PulseAudio + `pactl` se captura la tarjeta virtual
 **BlackHole** con ffmpeg (AVFoundation).
 
 ```
-macOS (BlackHole / Multi-Output Device)
+macos (BlackHole / Multi-Output Device)
         │  ffmpeg (-f avfoundation -f f32le)
         ▼
-audio_server_ws.py :8088  ──WS──►  browser (Web Audio API)
+audio_server_ws.py :8088  ──wss (TLS)──►  browser (Web Audio API)
 ```
 
 ## Requisitos
@@ -45,7 +45,13 @@ brew install switchaudio-osx
    ./start_audio.sh
    # o con configuración explícita:
    AUDIO_DEVICE="BlackHole 2ch" AUDIO_WS_PORT=8088 ./start_audio.sh
+   # y con TLS (wss), si tu página va por https:
+   AUDIO_TLS_CERT=certs/server.crt AUDIO_TLS_KEY=certs/server.key ./start_audio.sh
    ```
+
+   Sin `AUDIO_TLS_CERT`/`AUDIO_TLS_KEY` el servidor queda en `ws://` sin
+   cifrar. El script `arrancar_macos.sh` del kit ya pasa esas variables
+   automáticamente.
 
 6. **Parchea tu noVNC**: añade antes de `</body>` en `vnc.html`
 
@@ -53,9 +59,13 @@ brew install switchaudio-osx
    <script src="vnc-audio-client.js"></script>
    ```
 
-   y copia `web/vnc-audio-client.js` junto a `vnc.html`.
-7. **Prueba aislada** (sin abrir noVNC): abre `web/testaudio.html`. Debe
-   mostrar `CONECTADO ✓` y `Recibiendo audio (N bytes/frame) ✓`.
+   y copia `web/vnc-audio-client.js` junto a `vnc.html`. **Importante**: este
+   cliente del kit fuerza `wss://`, así que la página debe servirse por HTTPS
+   y el servidor de audio con TLS; si sirves por HTTP, usa el cliente original
+   del repo (deriva el esquema del protocolo de la página).
+7. **Prueba aislada** (sin abrir noVNC y sin conectar VNC): con el kit, abre
+   `https://localhost:6080/testaudio.html` (se sirve desde la raíz del fork).
+   Debe mostrar `CONECTADO ✓` y `Recibiendo audio (N bytes/frame) ✓`.
 
 ## Configuración (variables de entorno)
 
@@ -68,6 +78,8 @@ brew install switchaudio-osx
 | `AUDIO_CHUNK_MS` | `30` | Tamaño de frame en ms |
 | `AUDIO_DEVICE` | *(auto)* | Índice o nombre exacto del dispositivo (`"3"` o `"BlackHole 2ch"`) |
 | `AUDIO_DEVICE_HINT` | `BlackHole` | Subcadena para auto-detectar el dispositivo |
+| `AUDIO_TLS_CERT` | *(vacío)* | Ruta al certificado (p.ej. `certs/server.crt`). Si se define junto con `AUDIO_TLS_KEY`, el WebSocket se sirve por **wss** |
+| `AUDIO_TLS_KEY` | *(vacío)* | Ruta a la clave privada (`certs/server.key`) |
 
 La auto-detección ejecuta `ffmpeg -f avfoundation -list_devices true -i ""`
 y elige el primer dispositivo cuyo nombre contenga `AUDIO_DEVICE_HINT`.
@@ -81,10 +93,37 @@ ffmpeg -f avfoundation -list_devices true -i ""
 # Captura con el índice: AUDIO_DEVICE=6 ./start_audio.sh
 ```
 
+## HTTPS / wss con certificado auto-firmado
+
+`arrancar_macos.sh` sirve todo por HTTPS con un certificado auto-firmado que
+genera en `macos/certs/` si no existe (SAN: `DNS:localhost, IP:127.0.0.1`,
+válido 825 días). El navegador avisará *"certificado no homologado"*: es
+esperado, acepta el aviso para continuar.
+
+- **Entrar solo desde este Mac**: `https://localhost:6080/vnc.html` funciona
+  tal cual.
+- **Entrar desde otro equipo por IP de la LAN**: el certificado no cubre esa
+  IP. Regenera el certificado añadiéndola:
+
+  ```bash
+  cd macos/certs
+  openssl req -x509 -newkey rsa:2048 -keyout server.key -out server.crt \
+      -days 825 -nodes -subj "/CN=localhost" \
+      -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:192.168.200.50"
+  chmod 600 server.key
+  ```
+
+  (sustituye la IP por la de tu Mac) y reinicia `arrancar_macos.sh`. En el otro
+  equipo también deberás aceptar el aviso del certificado.
+
 ## Limitaciones y troubleshooting
 
 - **Sin sonido en el navegador**: comprueba que la salida del sistema apunta
   al Multi-Output / BlackHole y que el permiso de micrófono está concedido.
+- **El WebSocket no conecta (wss)**: el servidor debe estar con TLS
+  (`AUDIO_TLS_CERT` + `AUDIO_TLS_KEY`) y la página servida por https.
+- **El WebSocket no conecta (ws)**: si usas el cliente original (derivado por
+  protocolo) y la página va por http, el servidor debe estar SIN TLS.
 - **"No se encontró ningún dispositivo"**: BlackHole no instalado, o el
   proceso no tiene permiso de micrófono, o el nombre no coincide
   (`AUDIO_DEVICE_HINT`).

@@ -3,9 +3,10 @@
  * Reproduce el audio de la máquina remota (capturado por audio_server_ws.py)
  * en el navegador usando la Web Audio API.
  *
- * El protocolo del WebSocket se deriva AUTOMÁTICAMENTE de cómo cargas noVNC:
- *   - http://  ->  ws://
- *   - https:// ->  wss://
+ * Este cliente del kit macOS usa SIEMPRE wss:// porque tanto la página noVNC
+ * como el bridge de audio se sirven por HTTPS/TLS (certificado auto-firmado).
+ * Si quisieras volver a servir por HTTP, cambia audioWsUrl() a la derivación
+ * por protocolo:  const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
  *
  * El host se toma de window.location.hostname (el mismo desde donde abres noVNC).
  * Solo edita el PUERTO si cambiaste AudioAudioWS_PORT en el servidor.
@@ -23,7 +24,9 @@
     let started = false;
 
     function audioWsUrl() {
-        const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        // Kit macOS: el bridge de audio SIEMPRE corre con TLS (wss), igual que
+        // la página (HTTPS con certificado auto-firmado). Ver cabecera del archivo.
+        const scheme = 'wss';
         return scheme + '://' + window.location.hostname + ':' + AUDIO_PORT;
     }
 
@@ -93,5 +96,5 @@
         }
     }, { once: true });
 
-    console.log('[audio] Cliente listo. ws/wss derivado de:', window.location.protocol);
+    console.log('[audio] Cliente listo. Audio por wss:// (HTTPS + certificado auto-firmado)');
 })();

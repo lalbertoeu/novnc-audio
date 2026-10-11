@@ -20,3 +20,6 @@ ffmpeg-*-static/
 
 # El clip fuente de la demo se regenera con grabar_demo.sh (23MB); no se sube.
 docs/demo-assets/demo-clip.mp4
+# Certificados generados localmente por arrancar_macos.sh (clave privada: NUNCA subir)
+macos/certs/
+.DS_Store

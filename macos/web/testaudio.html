@@ -18,9 +18,10 @@
     <p>Estado: <span id="status">Conectando...</span></p>
 
     <script>
-        // Mismo comportamiento que vnc-audio-client.js: ws:// (HTTP) o wss:// (HTTPS)
+        // Kit macOS: igual que vnc-audio-client.js, el audio SIEMPRE va por wss://
+        // (la página se sirve por HTTPS con certificado auto-firmado).
         const PORT = 8088;
-        const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const scheme = 'wss';
         const wsUrl = scheme + '://' + window.location.hostname + ':' + PORT;
 
         document.getElementById('proto').textContent = window.location.protocol;
